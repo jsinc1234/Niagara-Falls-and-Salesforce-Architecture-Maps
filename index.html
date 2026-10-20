@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>City of Niagara Falls · Connected Service Architecture</title>
+<style>
+  /* City of Niagara Falls "At Your Service" brand wrapper colours, with Salesforce-style components */
+  :root{
+    --nf-navy:#002752; --nf-blue:#0077B5; --nf-aqua:#00A6C8; --nf-light:#EAF7FA;
+    --nf-blue-dark:#005A8A; --nf-aqua-soft:#BFE7F0;
+    /* legacy token names used below, now mapped to City colours */
+    --sf-navy:var(--nf-navy); --sf-blue:var(--nf-blue); --sf-blue-dark:var(--nf-blue-dark); --sf-sky:var(--nf-light); --sf-sky-2:var(--nf-aqua-soft);
+    --nf-mist:var(--nf-light);
+    --amber:#B86E00; --amber-tint:#FFF3DC;
+    --line:#D8E5EB; --text:#1A1A1A; --muted:#3F4D5A; --white:#fff;
+    --radius:12px; --shadow:0 1px 3px rgba(0,39,82,.08),0 6px 18px rgba(0,39,82,.06);
+    --font:Arial,Helvetica,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--font);color:var(--text);background:var(--nf-light);line-height:1.5}
+  a{color:var(--sf-blue)} a:hover{color:var(--sf-blue-dark)}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 28px}
+  /* hero */
+  .nf-header{background:var(--nf-navy);color:#fff;padding:20px 0;border-bottom:4px solid var(--nf-aqua)}
+  .nf-header .wrap{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}
+  .nf-header .brand{margin:0;font-size:26px;font-weight:700;letter-spacing:.01em}
+  .nf-header .tag{margin:0;font-size:15px;color:#CFE3EE}
+  .nf-header .sf{margin-left:auto;font-size:13px;font-weight:700;padding:5px 12px;border-radius:999px;background:rgba(255,255,255,.12)}
+  header.hero{position:relative;color:#fff;padding:44px 0 100px;background:var(--nf-blue);overflow:hidden}
+  header.hero::before{content:"";position:absolute;right:-140px;top:-160px;width:520px;height:520px;border-radius:50%;
+    background:radial-gradient(circle,rgba(0,166,200,.55),rgba(0,166,200,0) 70%)}
+  h1{font-size:46px;font-weight:800;margin:0 0 14px;line-height:1.08;letter-spacing:-.01em;max-width:760px}
+  .hero p.lede{font-size:18px;max-width:760px;margin:0;color:#EAF7FA}
+  .hero-ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}
+  .btn{display:inline-flex;align-items:center;height:44px;padding:0 22px;border-radius:22px;font-weight:700;font-size:15px;text-decoration:none;font-family:var(--font)}
+  .btn.primary{background:#fff;color:var(--nf-navy)} .btn.primary:hover{background:var(--sf-sky);color:var(--sf-navy)}
+  .btn.ghost{border:2px solid rgba(255,255,255,.8);color:#fff} .btn.ghost:hover{background:rgba(255,255,255,.12);color:#fff}
+  .draft{display:inline-block;margin-top:22px;font-size:13px;background:rgba(255,255,255,.14);padding:5px 12px;border-radius:999px}
+  .wave{position:absolute;left:0;right:0;bottom:-1px;width:100%;height:90px;display:block}
+  /* nav */
+  nav.toc{background:rgba(255,255,255,.97);backdrop-filter:blur(6px);position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line)}
+  nav.toc .wrap{display:flex;gap:8px;flex-wrap:wrap;padding-top:10px;padding-bottom:10px}
+  nav.toc a{text-decoration:none;color:var(--sf-navy);font-weight:600;font-size:14.5px;padding:7px 14px;border-radius:999px}
+  nav.toc a:hover{background:var(--sf-sky);color:var(--sf-blue-dark)}
+  section{padding:44px 0 8px}
+  .kicker{display:inline-block;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--nf-blue);margin-bottom:6px}
+  h2{color:var(--sf-navy);font-size:32px;font-weight:800;margin:0 0 8px;letter-spacing:-.01em}
+  .sub{color:var(--muted);margin:0 0 24px;font-size:17px;max-width:820px}
+  /* alignment tiles (service-portal style) */
+  .align-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);display:flex;flex-direction:column}
+  .card .ico{width:48px;height:48px;border-radius:14px;background:var(--nf-mist);display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+  .card .ico svg{width:26px;height:26px;stroke:var(--nf-blue);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .card h3{margin:0 0 6px;font-size:17px;color:var(--sf-navy);font-weight:700}
+  .card p{margin:0;font-size:15px;flex:1}
+  .progress{margin-top:14px}
+  .bar{height:8px;border-radius:4px;background:#D6EEF4;overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--nf-aqua),var(--nf-blue))}
+  .card .meta{margin-top:6px;font-size:13px;color:var(--muted)}
+  /* sequencing */
+  .seq{display:grid;grid-template-columns:1fr 44px 1fr 44px 1fr 44px 1fr;align-items:stretch}
+  .ms{background:#fff;border:2px dashed var(--nf-aqua);border-radius:12px;padding:18px;display:flex;flex-direction:column}
+  .ms-top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+  .ms-num{width:46px;height:46px;border-radius:50%;background:var(--nf-navy);color:#fff;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;flex:none}
+  .ms-tag{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);line-height:1.3}
+  .ms-tag b{display:block;color:var(--nf-blue)}
+  .ms h3{margin:0 0 8px;font-size:18px;color:var(--nf-navy)}
+  .ms ul{margin:0;padding-left:18px;font-size:14.5px}
+  .ms li{margin-bottom:6px}
+  .arrow{display:flex;align-items:center;justify-content:center;color:var(--nf-navy)}
+  .arrow svg{width:22px;height:40px}
+  .gates{display:grid;grid-template-columns:1fr 44px 1fr 44px 1fr 44px 1fr;margin-top:12px}
+  .gate{grid-row:1;background:#fff;border:1.5px solid var(--nf-navy);border-radius:999px;padding:8px 14px;font-size:13.5px;text-align:center;align-self:start}
+  .gate b{color:var(--nf-navy);margin-right:6px;letter-spacing:.04em}
+  .g1{grid-column:1/4}.g2{grid-column:3/6}.g3{grid-column:5/8}.gate{justify-self:center;max-width:240px}
+  .bars{margin-top:18px;display:grid;gap:10px}
+  .bar-row{border-radius:12px;padding:12px 18px;font-size:14.5px}
+  .bar-row b{margin-right:8px}
+  .bar-row.found{background:#fff;border:2px dashed var(--nf-aqua);color:var(--text)}.bar-row.found b{color:var(--nf-navy)}
+  .bar-row.live{background:var(--nf-blue);color:#fff}
+  .bar-row.track{background:var(--amber-tint);border:2px dashed var(--amber)}
+  @media (max-width:980px){
+    .seq{grid-template-columns:1fr}.arrow{transform:rotate(90deg);height:36px}
+    .gates{display:flex;flex-direction:column;gap:8px}.gate{max-width:none!important}
+  }
+  /* map */
+  .map-band{background:#fff;border:1px solid var(--line);border-radius:12px;padding:24px}
+  .map-shell{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:22px;align-items:start}
+  .legend{display:flex;gap:20px;flex-wrap:wrap;margin:0 0 14px;font-size:14px;align-items:center}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .sw{width:26px;height:16px;border-radius:5px;display:inline-block}
+  .sw.live{background:var(--nf-blue)}
+  .sw.disc{background:#fff;border:2px dashed var(--nf-aqua)}
+  .sw.conf{background:var(--amber-tint);border:2px dashed var(--amber)}
+  .hint{color:var(--muted);font-size:13.5px;font-style:italic;margin-left:auto}
+  .layer{display:grid;grid-template-columns:160px 1fr;gap:12px;background:var(--nf-light);border-radius:var(--radius);padding:12px;margin-bottom:12px}
+  .layer-label{display:flex;flex-direction:column;justify-content:center;padding-left:6px}
+  .layer-label b{display:block;color:var(--sf-navy);font-size:15.5px;font-weight:700}
+  .layer-label i{color:var(--muted);font-size:13px}
+  .boxes{display:flex;gap:8px;flex-wrap:wrap}
+  .box{flex:1 1 120px;min-height:66px;border-radius:12px;padding:8px 10px;font-size:14px;font-weight:600;text-align:center;cursor:pointer;
+       display:flex;flex-direction:column;justify-content:center;transition:transform .12s, box-shadow .12s, opacity .12s;font-family:var(--font);line-height:1.25}
+  .box small{display:block;font-size:12.5px;font-weight:400;opacity:.92;margin-top:3px}
+  .box.live{background:var(--nf-blue);color:#fff;border:2px solid var(--nf-blue)}
+  .box.disc{background:#fff;color:var(--nf-navy);border:2px dashed var(--nf-aqua)}
+  .box.conf{background:var(--amber-tint);color:var(--text);border:2px dashed var(--amber)}
+  .box:hover,.box:focus-visible{transform:translateY(-2px);box-shadow:0 6px 16px rgba(3,45,96,.18);outline:none}
+  .box:focus-visible{outline:3px solid var(--sf-blue);outline-offset:2px}
+  .box.wide{flex:2 1 240px}
+  .map.focus .box{opacity:.35}
+  .map.focus .box.related{opacity:1;box-shadow:0 0 0 3px var(--sf-sky-2)}
+  .map.focus .box.selected{opacity:1;box-shadow:0 0 0 3px var(--nf-navy);transform:translateY(-2px)}
+  /* panel */
+  .panel{position:sticky;top:70px;border-radius:var(--radius);padding:22px;background:#fff;box-shadow:var(--shadow);max-height:calc(100vh - 90px);overflow:auto}
+  .panel h3{color:var(--sf-navy);font-size:22px;font-weight:800;margin:0 0 8px}
+  .pill{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:4px 10px;border-radius:999px;margin-bottom:12px}
+  .pill.live{background:var(--nf-blue);color:#fff}.pill.disc{background:var(--nf-navy);color:#fff}.pill.conf{background:var(--amber);color:#fff}
+  .panel h4{font-size:12.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--nf-blue);margin:18px 0 4px}
+  .panel p{margin:0;font-size:15px}
+  .panel ul{margin:4px 0 0;padding-left:18px;font-size:15px}
+  .panel li{margin-bottom:5px}
+  .res a{font-weight:600}
+  .res .d{display:block;color:var(--muted);font-size:13.5px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .chip{font-size:13px;background:#fff;border:1.5px solid var(--sf-blue);border-radius:999px;padding:4px 12px;cursor:pointer;color:var(--sf-blue);font-weight:600;font-family:var(--font)}
+  .chip:hover{background:var(--sf-blue);color:#fff}
+  .empty p{color:var(--muted)}
+  .reset{font-size:13.5px;background:none;border:none;color:var(--sf-blue);cursor:pointer;padding:0;margin-top:16px;font-family:var(--font);font-weight:600;text-decoration:underline}
+  /* foundations / decisions */
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  .list-card{border-radius:12px;padding:26px 28px}
+  .list-card.light{background:#fff;border:1px solid var(--line)}
+  .list-card.dark{background:var(--nf-navy);color:#fff}
+  .list-card h3{margin:0 0 12px;font-size:21px;font-weight:800}
+  .list-card.light h3{color:var(--sf-navy)}
+  .list-card ol,.list-card ul{margin:0;padding-left:20px}
+  .list-card li{margin-bottom:10px;font-size:15.5px}
+  .list-card.dark b{color:#7FD6E8}
+  /* library */
+  .lib-tools{display:flex;gap:12px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
+  .lib-tools input{flex:1 1 280px;height:46px;padding:0 20px;border:1.5px solid var(--line);border-radius:23px;font-size:15px;font-family:var(--font)}
+  .lib-tools input:focus{outline:none;border-color:var(--sf-blue);box-shadow:0 0 0 3px var(--sf-sky-2)}
+  .lib-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .lib-group{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow)}
+  .lib-group h3{margin:0 0 10px;font-size:16px;color:var(--sf-navy);font-weight:700}
+  .lib-group ul{margin:0;padding:0;list-style:none}
+  .lib-group li{margin-bottom:10px;font-size:14.5px}
+  .lib-group li a{font-weight:600}
+  .lib-group li .d{display:block;color:var(--muted);font-size:13px}
+  .note{font-size:13.5px;color:var(--muted);margin-top:14px}
+  footer{margin-top:56px;background:var(--nf-navy);border-top:4px solid var(--nf-aqua);color:#CFE0F0;padding:30px 0 40px;font-size:14px}
+  footer b{color:#fff}
+  @media (max-width:980px){
+    .map-shell{grid-template-columns:1fr}.panel{position:static;max-height:none}
+    .align-grid{grid-template-columns:1fr 1fr}.lib-grid{grid-template-columns:1fr 1fr}.two{grid-template-columns:1fr}
+  }
+  @media (max-width:640px){
+    .nf-header .sf{margin-left:0}
+    .layer{grid-template-columns:1fr}.align-grid,.lib-grid{grid-template-columns:1fr}h1{font-size:32px}.hint{margin-left:0}.map-band{padding:14px}
+  }
+  @media print{nav.toc{position:static}.panel{position:static;max-height:none;box-shadow:none}header.hero{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head>
+<body>
+
+<div class="nf-header">
+  <div class="wrap">
+    <p class="brand">Niagara Falls</p>
+    <p class="tag">At Your Service | Digital Services</p>
+    <span class="sf">Prepared with Salesforce</span>
+  </div>
+</div>
+<header class="hero">
+  <div class="wrap" style="position:relative">
+    <h1>Connected Service Architecture</h1>
+    <p class="lede">A shared reference for the conversation about where resident and employee service is today, and the building blocks under discussion. It's a working view, built to be corrected and shaped with City staff before any roadmap is drafted.</p>
+    <div class="hero-ctas"><a class="btn primary" href="#map">Explore the map</a><a class="btn ghost" href="#sequence">See the sequence</a><a class="btn ghost" href="#library">Browse resources</a></div>
+    <span class="draft">Draft for discussion · October 2026 · Not a proposal or quote</span>
+  </div>
+  <svg class="wave" viewBox="0 0 1440 90" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0,50 C240,95 480,5 720,40 C960,75 1200,20 1440,45 L1440,90 L0,90 Z" fill="#EAF7FA"/>
+    <path d="M0,62 C260,30 520,95 780,60 C1040,25 1240,80 1440,58" fill="none" stroke="#00A6C8" stroke-opacity=".7" stroke-width="2"/>
+  </svg>
+</header>
+
+<nav class="toc" aria-label="Sections">
+  <div class="wrap">
+    <a href="#alignment">Strategic alignment</a>
+    <a href="#map">Architecture map</a>
+    <a href="#sequence">Milestone sequence</a>
+    <a href="#foundations">Shared foundations</a>
+    <a href="#decisions">Decisions ahead</a>
+    <a href="#library">Resource library</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="alignment">
+    <span class="kicker">Strategic alignment</span>
+    <h2>Anchored in the City's Strategic Plan</h2>
+    <p class="sub">The Customer Service pillar of the <a href="https://niagarafalls.ca/city-government/plans-reports-and-studies/strategic-plan/" target="_blank" rel="noopener">2023–2027 Strategic Plan</a> already sets the direction. This architecture is one way to connect those actions.</p>
+    <div class="align-grid">
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4z"/><path d="M4 10h16M9 14h6"/></svg></div><h3>Implement a CRM system</h3><p>Expand CRM functionality to more service areas and improve how requests are managed across City services.</p><div class="progress"><div class="bar" role="img" aria-label="Reported 75% complete"><i style="width:75%"></i></div><div class="meta">Reported 75% complete</div></div></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h10a4 4 0 0 1 4 4v12H9a4 4 0 0 1-4-4z"/><path d="M9 8h6M9 12h6"/></svg></div><h3>Establish a knowledge base</h3><p>Internal and resident-facing knowledge in the CRM, with ongoing content expansion and better searchability.</p><div class="progress"><div class="bar" role="img" aria-label="Reported 75% complete"><i style="width:75%"></i></div><div class="meta">Reported 75% complete</div></div></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 10h.01M12 10h.01M16 10h.01"/></svg></div><h3>Online chat for residents</h3><p>AI-enabled digital tools that give residents 24/7 access to information and online services.</p><div class="progress"><div class="bar" role="img" aria-label="Reported 10% complete"><i style="width:10%"></i></div><div class="meta">Reported 10% complete</div></div></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 7.5l3 8M16 7.5l-3 8M8.5 6h7"/></svg></div><h3>Upgrade back-of-house systems</h3><p>Seamless integration of customer interactions and workflow with the systems behind them.</p><div class="progress"><div class="bar" role="img" aria-label="Reported 10% complete · pending"><i style="width:10%"></i></div><div class="meta">Reported 10% complete · pending</div></div></div>
+    </div>
+    <p class="note">Source: <a href="https://niagarafalls.ca/city-government/plans-reports-and-studies/strategic-plan/strategic-plan-customer-service/" target="_blank" rel="noopener">Strategic Plan – Customer Service progress</a>, City of Niagara Falls.</p>
+  </section>
+
+  <section id="map">
+    <span class="kicker">Architecture</span>
+    <h2>Architecture map</h2>
+    <p class="sub">Each layer answers one question. Select any box to see what it is, why it matters for the City, what to confirm together, and where to learn more. The boxes it connects to are highlighted.</p>
+    <div class="map-band">
+    <div class="legend">
+      <span><i class="sw live"></i>In place today</span>
+      <span><i class="sw disc"></i>Under discussion</span>
+      <span><i class="sw conf"></i>To confirm together</span>
+      <span class="hint">Tip: use Tab and Enter to move between boxes</span>
+    </div>
+    <div class="map-shell">
+      <div class="map" id="mapEl"></div>
+      <aside class="panel" id="panel" aria-live="polite">
+        <div class="empty">
+          <h3>Select a building block</h3>
+          <p>Choose any box in the map to see its details and resources.</p>
+          <h4>Good places to start</h4>
+          <div class="chips" id="starters"></div>
+        </div>
+      </aside>
+    </div>
+    </div>
+  </section>
+
+  <section id="sequence">
+    <span class="kicker">Milestone sequence</span>
+    <h2>How the resident milestones build on each other</h2>
+    <p class="sub">The resident portal and the MuleSoft integration layer come first. Each later milestone starts only once the ones before it are delivered. Timing will be set with the City's project plans.</p>
+    <div class="seq"><div class="ms"><div class="ms-top"><div class="ms-num">1</div><div class="ms-tag">Milestone 1<b>Top priority</b></div></div><h3>Resident Portal</h3><ul><li>Self-service portal for residents, built on Experience Cloud</li><li>MuleSoft is built here and powers the portal, point of sale and all future portal enhancements</li></ul></div><div class="arrow" aria-hidden="true"><svg viewBox="0 0 22 40"><path d="M3 3l15 17L3 37" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ms"><div class="ms-top"><div class="ms-num">1.5</div><div class="ms-tag">Milestone 1.5<b>Prerequisite</b></div></div><h3>Point of Sale</h3><ul><li>Delivered right after the portal and tied into it</li></ul></div><div class="arrow" aria-hidden="true"><svg viewBox="0 0 22 40"><path d="M3 3l15 17L3 37" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ms"><div class="ms-top"><div class="ms-num">2</div><div class="ms-tag">Milestone 2<b>Secondary</b></div></div><h3>Mobile App + Agentforce for Staff</h3><ul><li>Gives residents mobile access to the same portal</li><li>Agentforce for Service helps customer service staff answer and resolve requests</li></ul></div><div class="arrow" aria-hidden="true"><svg viewBox="0 0 22 40"><path d="M3 3l15 17L3 37" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ms"><div class="ms-top"><div class="ms-num">3</div><div class="ms-tag">Milestone 3<b>Final milestone</b></div></div><h3>Resident Service Agent</h3><ul><li>An AI agent that answers resident questions and handles service requests</li></ul></div></div>
+    <div class="gates">
+      <div class="gate g1"><b>GATE 1</b>Portal live</div>
+      <div class="gate g2"><b>GATE 2</b>Portal and point of sale live; decision on later phases</div>
+      <div class="gate g3"><b>GATE 3</b>Portal, point of sale, app and staff agent complete</div>
+    </div>
+    <div class="bars">
+      <div class="bar-row found"><b>Foundation · MuleSoft integration layer</b>Built in Milestone 1 and reused by point of sale, the mobile app and both agents. Connects Vadim, ActiveNet, Cartegraph and Workday.</div>
+      <div class="bar-row live"><b>In place · Service Cloud CRM + Knowledge</b>Every milestone builds on the City's existing CRM and knowledge base.</div>
+      <div class="bar-row track"><b>Separate track · IT Service Management</b>In evaluation. Not part of the resident milestones or their gates, and follows its own decision timeline.</div>
+    </div>
+  </section>
+
+  <section id="foundations">
+    <div class="two">
+      <div class="list-card light">
+        <h3>Shared foundations: build once, use everywhere</h3>
+        <ul>
+          <li><b>One knowledge base</b> serves front-counter staff, the portal, the app, the resident agent and IT self-service, so residents and staff get the same answer everywhere.</li>
+          <li><b>Reusable APIs</b> (starting with tax and billing) feed the staff console first, then the portal, app and agent. Channels stay protected when back-office systems change.</li>
+          <li><b>Employee data from Workday</b> can drive onboarding and offboarding tasks in IT service management, and power an employee help agent.</li>
+          <li><b>Payments taken on the platform</b> still post to the finance system, so payments and integration should be planned together.</li>
+          <li><b>Better tools for customer service staff</b> also reduce IT requests, since front-line teams touch the most systems.</li>
+        </ul>
+      </div>
+      <div class="list-card dark" id="decisions">
+        <h3>Decisions ahead for the City</h3>
+        <ol>
+          <li><b>Platform role:</b> a corporate service platform, or a departmental tool?</li>
+          <li><b>Integration ownership:</b> an in-house team, a partner, or a mix, sized to the City's capacity.</li>
+          <li><b>Sequencing with the finance system:</b> build connections now, or align with the replacement timeline?</li>
+          <li><b>Resident identity:</b> one login across portal, app, recreation and payments?</li>
+          <li><b>AI guardrails:</b> what data agents can use, in line with MFIPPA, AODA and cybersecurity priorities.</li>
+          <li><b>Funding approach:</b> phased investments aligned to annual budget cycles and procurement rules.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section id="library">
+    <span class="kicker">Learn more</span>
+    <h2>Resource library</h2>
+    <p class="sub">Every resource referenced in the map, grouped by layer. Public links only.</p>
+    <div class="lib-tools"><input id="q" type="search" placeholder="Filter resources (e.g. portal, MuleSoft, accessibility)" aria-label="Filter resources"></div>
+    <div class="lib-grid" id="lib"></div>
+    <p class="note">Product names change often. Salesforce now refers to Service Cloud as Agentforce Service, Public Sector Solutions as Agentforce Public Sector, and Data Cloud as Data 360, so some linked pages use older names.</p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <b>Prepared by the Salesforce account team for the City of Niagara Falls</b> · October 2026. This is a discussion draft based on conversations to date and public City documents. It isn't a proposal, quote or commitment, and every element should be validated with City staff.
+  </div>
+</footer>
+
+<script>
+const R = {
+  ayc:{t:"At Your Service Niagara Falls",u:"https://niagarafalls.ca/city-government/at-your-service-niagara-falls/",d:"The City's phone, in-person and online service model"},
+  spcs:{t:"Strategic Plan – Customer Service",u:"https://niagarafalls.ca/city-government/plans-reports-and-studies/strategic-plan/strategic-plan-customer-service/",d:"Actions and progress for the Customer Service pillar"},
+  sp:{t:"City Strategic Plan 2023–2027",u:"https://niagarafalls.ca/city-government/plans-reports-and-studies/strategic-plan/",d:"Three pillars guiding the current Council term"},
+  activenet:{t:"Create an ActiveNet account",u:"https://niagarafalls.ca/recreation-culture-and-community/recreation-programs-and-facilities/create-an-activenet-account/",d:"Recreation registration and payments"},
+  amp:{t:"Asset Management Plan",u:"https://niagarafalls.ca/city-government/plans-reports-and-studies/asset-management-plan/",d:"The City's plan for infrastructure assets"},
+  budgets:{t:"City budgets",u:"https://niagarafalls.ca/city-government/budget-and-finances/budgets/",d:"Operating and capital budgets"},
+  pss:{t:"Salesforce Public Sector Solutions",u:"https://www.salesforce.com/government/solutions/",d:"Case management, routing and service for government"},
+  casemgmt:{t:"Case management for government",u:"https://www.salesforce.com/government/case-management/",d:"Intake, routing and resolution of resident requests"},
+  kb:{t:"Trailhead: Knowledge Basics",u:"https://trailhead.salesforce.com/content/learn/modules/lightning-knowledge-basics",d:"Build a knowledge base staff and AI can draw on"},
+  kbsearch:{t:"Trailhead: Knowledge Search Basics",u:"https://trailhead.salesforce.com/content/learn/modules/knowledge_search_basics",d:"How knowledge search works and how to tune it"},
+  ec:{t:"Trailhead: Experience Cloud Basics",u:"https://trailhead.salesforce.com/content/learn/modules/community_cloud_basics",d:"Branded portals connected to the CRM"},
+  ectrail:{t:"Trailhead trail: Experience Cloud",u:"https://trailhead.salesforce.com/content/learn/trails/communities",d:"Build portals, including service templates"},
+  mp:{t:"Mobile Publisher help",u:"https://help.salesforce.com/s/articleView?language=en_US&id=experience.networks_mobile_publisher.htm&type=5",d:"Turn a portal into a branded app-store app"},
+  mpfaq:{t:"Mobile Publisher FAQ",u:"https://help.salesforce.com/s/articleView?id=sf.branded_apps_commun_faq.htm&language=en_US&type=5",d:"Common questions on setup and updates"},
+  afps:{t:"Agentforce for Public Sector",u:"https://www.salesforce.com/government/artificial-intelligence/",d:"AI agents designed for government service"},
+  afpstr:{t:"Trailhead: Agentforce for Public Sector",u:"https://trailhead.salesforce.com/content/learn/modules/agentforce-for-public-sector-solutions",d:"Templates, topics and actions for government agents"},
+  csagents:{t:"AI customer service agents",u:"https://www.salesforce.com/service/ai/customer-service-agents/",d:"Round-the-clock self-service with handoff to staff"},
+  itsm:{t:"IT Service Management (Canada)",u:"https://www.salesforce.com/ca/service/it-service-management/",d:"Incident, problem, change, CMDB, Slack and Teams"},
+  itsmnews:{t:"Agentforce IT Service announcement",u:"https://www.salesforce.com/news/stories/agentforce-it-service-announcement/",d:"Conversational IT requests in Slack and Teams"},
+  itsmtr:{t:"Trailhead: Agentforce IT Service Basics",u:"https://trailhead.salesforce.com/content/learn/modules/agentforce-it-service-basics/discover-core-agentforce-it-service-processes",d:"Core ITSM processes and setup order"},
+  teams:{t:"Salesforce integration with Microsoft Teams",u:"https://help.salesforce.com/s/articleView?id=sales.teams_int_parent.htm&language=en_US&type=5",d:"Share and work with Salesforce records in Teams"},
+  intune:{t:"Microsoft Intune connector for Flow",u:"https://help.salesforce.com/s/articleView?id=platform.automate_flow_ref_third_party_microsoft_intune.htm&language=en_US&type=5",d:"Automate with Intune device data"},
+  intuneblog:{t:"Salesforce mobile and Intune (blog, 2024)",u:"https://www.salesforce.com/blog/microsoft-intune-myths/",d:"How Intune management works with Salesforce mobile"},
+  trust:{t:"Einstein Trust Layer",u:"https://help.salesforce.com/s/articleView?language=en_US&id=ai.generative_ai_trust_layer.htm",d:"Data masking, grounding and audit controls for AI"},
+  trusttr:{t:"Trailhead: The Einstein Trust Layer",u:"https://trailhead.salesforce.com/content/learn/modules/the-einstein-trust-layer",d:"How generative AI is secured"},
+  trustedai:{t:"Salesforce trusted AI principles",u:"https://www.salesforce.com/artificial-intelligence/trusted-ai/",d:"Principles for responsible AI"},
+  a11y:{t:"Product accessibility status (ACRs / VPATs)",u:"https://www.salesforce.com/company/legal/508_accessibility/",d:"Accessibility conformance reports by product"},
+  resid:{t:"Data residency in Canada",u:"https://www.salesforce.com/ca/platform/data-residency-resilience/",d:"Hyperforce data residency options for Canada"},
+  residhelp:{t:"Hyperforce data residency (Help)",u:"https://help.salesforce.com/s/articleView?id=000795008&language=en_US&type=1",d:"What stays in-country, including AI exceptions"},
+  anypoint:{t:"MuleSoft Anypoint Platform",u:"https://www.mulesoft.com/platform/enterprise-integration",d:"Build, manage and monitor APIs and integrations"},
+  apiled:{t:"API-led connectivity explained",u:"https://www.mulesoft.com/api/advantages-of-api-led-connectivity",d:"System, process and experience API layers"},
+  mgov:{t:"MuleSoft for government",u:"https://www.mulesoft.com/integration-solutions/soa/government",d:"Integration for public sector organizations"},
+  denver:{t:"Case study: City and County of Denver",u:"https://www.mulesoft.com/case-studies/soa/government-agency",d:"Municipal 311 and permitting integration"},
+  fabric:{t:"MuleSoft Agent Fabric",u:"https://www.mulesoft.com/ai/agent-fabric",d:"Discover, govern and orchestrate AI agents"},
+  mtrail:{t:"Trailhead trail: MuleSoft integrations",u:"https://trailhead.salesforce.com/content/learn/trails/great-integrations-mulesoft",d:"Learning path for MuleSoft"},
+  d360:{t:"Trailhead: Data Cloud overview",u:"https://trailhead.salesforce.com/content/learn/modules/data-cloud-explore-the-data-landscape",d:"Introduction to unified data (now Data 360)"},
+  d360j:{t:"Trailhead journey: Data 360",u:"https://trailhead.salesforce.com/content/learn/trailhead-journey/data-360",d:"Step-by-step learning path"},
+  eposly:{t:"Eposly on AppExchange",u:"https://appexchange.salesforce.com/appxListingDetail?listingId=a0N30000000qD0GEAU",d:"Salesforce-native point of sale and payments"},
+  eposlysite:{t:"Eposly",u:"https://eposly.io/",d:"Vendor site"},
+  sc:{t:"StoreConnect on AppExchange",u:"https://appexchange.salesforce.com/appxListingDetail?listingId=a0N3A00000FMkeKUAT",d:"Native commerce and point of sale"},
+  scpos:{t:"StoreConnect POS",u:"https://storeconnect.com/c/lp-pos",d:"How native point of sale works"},
+  wd:{t:"MuleSoft Workday connector",u:"https://www.mulesoft.com/exchange/com.mulesoft.connectors/mule-workday-connector/",d:"Prebuilt connector for Workday HR and payroll"},
+  wddocs:{t:"Workday connector documentation",u:"https://docs.mulesoft.com/workday-connector/latest/",d:"Technical reference"},
+  platform:{t:"Trailhead: Salesforce Platform Basics",u:"https://trailhead.salesforce.com/content/learn/modules/starting_force_com",d:"Platform essentials"},
+  psadmin:{t:"Trailhead: Admin Essentials for Public Sector",u:"https://trailhead.salesforce.com/content/learn/modules/admin-essentials-for-public-sector-solutions",d:"Users, security and public portals"},
+  df:{t:"Five big ideas from Dreamforce 2026",u:"https://www.salesforce.com/news/stories/five-dreamforce-2026-takeaways/",d:"Official Salesforce recap"},
+  dfmedia:{t:"Dreamforce 2026 announcements",u:"https://www.salesforce.com/news/dreamforce-26-media-resources/",d:"All announcements from the event"}
+};
+
+const LAYERS = [
+  {id:"ch", name:"Channels", rule:"How people engage"},
+  {id:"ai", name:"AI agents", rule:"Who does the work"},
+  {id:"pf", name:"Salesforce platform", rule:"Where work is managed"},
+  {id:"in", name:"Integration", rule:"How it connects"},
+  {id:"sr", name:"City systems of record", rule:"Where the official data lives"}
+];
+
+const C = [
+  // Channels
+  {id:"counter",L:"ch",s:"live",t:"Counter & phone",sub:"At Your Service",
+   what:"In-person and phone service at City Hall and MacBain Community Centre, supported by a dedicated customer service team and the CRM.",
+   why:"Every other channel should give residents the same answer staff give at the counter, and free staff to spend time on complex requests.",
+   confirm:["Which services still need a counter visit or phone call today?","Which requests take staff the longest to resolve?"],
+   rel:["crm","web","resagent"],res:["ayc","spcs"]},
+  {id:"web",L:"ch",s:"live",t:"Website, email & online request forms",
+   what:"The City website, email and online service requests that residents use today, with 60+ request types available online.",
+   why:"Residents are already engaging online. The opportunity is to let them track requests and finish more transactions without a follow-up call.",
+   confirm:["Which request types have the most volume?","What happens after a request is submitted, and how do residents hear back?"],
+   rel:["crm","portal","resagent"],res:["ayc","spcs"]},
+  {id:"portal",L:"ch",s:"disc",t:"Resident portal",sub:"one login",
+   what:"A secure resident account to submit requests, check status and, over time, see account information such as tax, permits and bookings.",
+   why:"Supports the Strategic Plan goal of end-to-end digital service experiences that residents can complete online.",
+   confirm:["Which transactions would residents value most in their account?","What sign-in approach would work across City services?"],
+   rel:["expcloud","crm","mulesoft","mobile","resagent"],res:["ec","pss","spcs"]},
+  {id:"mobile",L:"ch",s:"disc",t:"Mobile app",sub:"iOS & Android",
+   what:"A City-branded app built from the resident portal, so residents can report issues and check status on the go.",
+   why:"Gives residents a convenient channel for reporting issues in the field (potholes, trees, by-law) and receiving notifications.",
+   confirm:["Does the City want a branded app, or a mobile-friendly portal first?","How would the app be promoted to residents?"],
+   rel:["portal","expcloud"],res:["mp","mpfaq"]},
+  {id:"teams",L:"ch",s:"disc",t:"Staff via Microsoft Teams",
+   what:"Staff raise and track IT requests and get answers inside Microsoft Teams, where they already chat and call.",
+   why:"Fewer clicks for staff and fewer emails to sort. Meets IT's stated preference for working inside Teams.",
+   confirm:["Which IT requests should start in Teams?","Are there Teams governance policies to align with?"],
+   rel:["itsm","empagent","intune"],res:["itsm","itsmnews","teams"]},
+  // AI agents
+  {id:"resagent",L:"ai",s:"disc",t:"Resident service agent",sub:"24/7 & surge",
+   what:"An AI agent on the website, portal or app that answers common questions, starts requests and hands off to staff when needed.",
+   why:"Directly supports the Strategic Plan action to give residents 24/7 access to information, including during storms and other surge events.",
+   confirm:["Which 10 questions would be most valuable to automate first?","Who approves AI use and content at the City?"],
+   rel:["crm","portal","web","governance","mulesoft","data360"],res:["afps","csagents","afpstr"]},
+  {id:"empagent",L:"ai",s:"disc",t:"IT / HR employee agent",sub:"for all staff",
+   what:"An AI agent that resolves routine IT questions (passwords, MFA, how-to), suggests knowledge articles and creates tickets when needed.",
+   why:"Deflects repetitive tickets and helps during seasonal hiring peaks, when many new staff need accounts at once.",
+   confirm:["Which ticket types are most repetitive today?","How should success be measured (for example, deflection rate)?"],
+   rel:["itsm","teams","workday","governance"],res:["itsmnews","itsmtr"]},
+  {id:"governance",L:"ai",s:"conf",t:"AI governance, privacy & accessibility",
+   what:"The rules for what data AI agents can use, how answers are checked, and how residents with disabilities are supported.",
+   why:"Builds trust with residents and Council, and aligns AI with the City's cybersecurity investment, MFIPPA privacy obligations and AODA accessibility standards.",
+   confirm:["Does the City have an AI use policy, or is one being developed?","Which data must stay in Canada, and how should AI processing be handled?"],
+   rel:["resagent","empagent","data360"],res:["trust","trusttr","trustedai","a11y","resid","residhelp","fabric"]},
+  // Platform
+  {id:"crm",L:"pf",s:"live",t:"Service Cloud CRM + Knowledge",
+   what:"The City's CRM for tracking service requests and communicating progress, including an internal and resident-facing knowledge base.",
+   why:"The hub of At Your Service. Expanding it to more service areas is a stated Strategic Plan milestone.",
+   confirm:["Which departments or service areas are next to join the CRM?","Who maintains the knowledge base, and how often is it reviewed?"],
+   rel:["counter","web","portal","resagent","mulesoft","data360"],res:["pss","casemgmt","kb","kbsearch","psadmin"]},
+  {id:"expcloud",L:"pf",s:"disc",t:"Experience Cloud",sub:"portal platform",
+   what:"The Salesforce technology for the resident portal, connected directly to the CRM, so requests, status and knowledge stay in one place.",
+   why:"One platform for the portal, the app and the CRM means less duplication and a consistent resident experience.",
+   confirm:["What does the current online request experience run on?","Which content should be public, and which signed-in only?"],
+   rel:["portal","mobile","crm"],res:["ec","ectrail"]},
+  {id:"itsm",L:"pf",s:"disc",t:"IT Service Management",sub:"incidents, change & assets",
+   what:"Service management for the IT team: request intake, multi-step tasks (such as onboarding), incident and change management, and an asset database.",
+   why:"Better routing, service levels that fit each request type, and visibility of wider incidents that affect many users at once.",
+   confirm:["When does the current service desk contract end?","Which workflows matter most (onboarding, offboarding, incidents)?"],
+   rel:["teams","empagent","workday","intune"],res:["itsm","itsmtr","itsmnews"]},
+  {id:"pos",L:"pf",s:"disc",t:"Point of sale / payments",sub:"Salesforce-native app",
+   what:"A point-of-sale app that runs on Salesforce (such as Eposly or StoreConnect), so counter payments sit with the resident's record.",
+   why:"Could reduce the number of separate payment points residents and staff deal with today.",
+   confirm:["Which payments are taken at which counters today?","Who owns payments, and what are the PCI requirements?"],
+   rel:["mulesoft","fatm","counter"],res:["eposly","eposlysite","sc","scpos"]},
+  {id:"data360",L:"in",s:"conf",t:"Data 360",sub:"unified resident view",
+   what:"A data layer that brings information from several systems into a single, governed view, often used to ground AI agents.",
+   why:"May help later phases. Its role should be defined only once specific use cases are agreed.",
+   confirm:["Is there a resident or service question that today needs data from several systems?","What data governance already exists?"],
+   rel:["crm","resagent","governance","mulesoft"],res:["d360","d360j"]},
+  // Integration
+  {id:"legacy",L:"in",s:"live",t:"Today's connections",sub:".NET middleware · SFTP · webhooks · manual files",wide:true,
+   what:"Custom point-to-point links between systems, built and maintained individually.",
+   why:"These work, but each new channel needs new connections, and failures are hard to spot early.",
+   confirm:["Which integrations are most fragile or time-consuming today?","Which ones would be affected by the finance system replacement?"],
+   rel:["mulesoft","fatm","activenet","crm"],res:["apiled"]},
+  {id:"mulesoft",L:"in",s:"disc",t:"MuleSoft integration layer",sub:"Tax & Billing · Recreation · Asset · HR · Payment APIs",wide:true,
+   what:"Reusable, monitored APIs that connect the City's systems once and serve every channel: staff console, portal, app and AI agents.",
+   why:"Delivers the Strategic Plan's 'back-of-house integration' action and protects channels when the finance system changes.",
+   confirm:["Which two or three connections would deliver the most value first?","Who would build and look after the APIs?"],
+   rel:["legacy","fatm","activenet","cartograph","workday","crm","portal","resagent","pos"],res:["anypoint","apiled","mgov","denver","fabric","mtrail"]},
+  // Systems of record
+  {id:"fatm",L:"sr",s:"conf",t:"Vadim",sub:"tax · water · finance",
+   what:"Vadim, the City's finance, tax and water billing system, on-premises. A replacement may be planned around 2028.",
+   why:"Most resident account questions (balances, bills) depend on this data. Its timeline shapes the sequence of everything else.",
+   confirm:["What is the replacement plan and timeline?","Which data do residents and staff ask about most?"],
+   rel:["mulesoft","legacy","pos"],res:["budgets","apiled"]},
+  {id:"activenet",L:"sr",s:"live",t:"ActiveNet",sub:"recreation",
+   what:"Recreation program registration, bookings and stored value for residents.",
+   why:"A high-volume resident touchpoint, and a candidate for showing bookings in the resident portal.",
+   confirm:["Should recreation stay a separate login, or be linked to the resident portal?"],
+   rel:["mulesoft","portal"],res:["activenet"]},
+  {id:"cartograph",L:"sr",s:"live",t:"Cartegraph",sub:"asset management",
+   what:"The City's enterprise asset management system for infrastructure and work.",
+   why:"Connecting service requests to assets and work orders gives residents status updates and gives staff better data.",
+   confirm:["Which request types create work orders today?"],
+   rel:["mulesoft","crm"],res:["amp"]},
+  {id:"workday",L:"sr",s:"live",t:"Workday",sub:"HR",
+   what:"The City's HR system. Since its rollout, all employees have Workday logins.",
+   why:"Employee data can automatically trigger onboarding and offboarding tasks, reducing manual IT tickets.",
+   confirm:["Which onboarding and offboarding steps are manual today?"],
+   rel:["mulesoft","itsm","empagent"],res:["wd","wddocs"]},
+  {id:"permitting",L:"sr",s:"conf",t:"CityView",sub:"permitting",
+   what:"CityView, the City's electronic building permitting software, with online applications available to the public.",
+   why:"Permit status is a common resident question and a candidate for the resident view. It isn't yet part of these discussions.",
+   confirm:["Which CityView integration options (APIs or data exports) are available?","Should permit status appear in the resident portal?"],
+   rel:["mulesoft","portal"],res:["spcs","denver"]},
+  {id:"intune",L:"sr",s:"conf",t:"Intune · M365 · ManageEngine",sub:"devices & productivity",
+   what:"Device management and productivity tools used by IT and staff today.",
+   why:"Device details next to each ticket speed up troubleshooting, and Teams is where staff already work.",
+   confirm:["Which device data would be most useful on a ticket?","What is the plan for the current asset agent?"],
+   rel:["itsm","teams"],res:["intune","intuneblog","teams"]}
+];
+
+const byId = Object.fromEntries(C.map(c=>[c.id,c]));
+const statusLabel = {live:"In place today",disc:"Under discussion",conf:"To confirm together"};
+const esc = s => String(s).replace(/[&<>"]/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+
+// render map
+const mapEl = document.getElementById("mapEl");
+LAYERS.forEach(L=>{
+  const row = document.createElement("div"); row.className="layer";
+  row.innerHTML = `<div class="layer-label"><b>${L.name}</b><i>${L.rule}</i></div><div class="boxes"></div>`;
+  const boxes = row.querySelector(".boxes");
+  C.filter(c=>c.L===L.id).forEach(c=>{
+    const b=document.createElement("button");
+    b.type="button"; b.className=`box ${c.s}${c.wide?" wide":""}`; b.dataset.id=c.id;
+    b.setAttribute("aria-label", `${c.t}, ${statusLabel[c.s]}`);
+    b.innerHTML = esc(c.t) + (c.sub?`<small>${esc(c.sub)}</small>`:"");
+    b.addEventListener("click",()=>select(c.id));
+    boxes.appendChild(b);
+  });
+  mapEl.appendChild(row);
+});
+
+const panel = document.getElementById("panel");
+const emptyHTML = panel.innerHTML;
+function resLi(k){const r=R[k];return `<li class="res"><a href="${r.u}" target="_blank" rel="noopener">${esc(r.t)}</a><span class="d">${esc(r.d)}</span></li>`;}
+function select(id){
+  const c = byId[id];
+  mapEl.classList.add("focus");
+  mapEl.querySelectorAll(".box").forEach(b=>{
+    b.classList.toggle("selected", b.dataset.id===id);
+    b.classList.toggle("related", c.rel.includes(b.dataset.id));
+  });
+  const layer = LAYERS.find(l=>l.id===c.L);
+  panel.innerHTML = `
+    <h3>${esc(c.t)}</h3>
+    <span class="pill ${c.s}">${statusLabel[c.s]}</span> <span style="color:var(--muted);font-size:13px">· ${esc(layer.name)}</span>
+    <h4>What it is</h4><p>${esc(c.what)}</p>
+    <h4>Why it matters for the City</h4><p>${esc(c.why)}</p>
+    <h4>To confirm together</h4><ul>${c.confirm.map(q=>`<li>${esc(q)}</li>`).join("")}</ul>
+    <h4>Resources</h4><ul>${c.res.map(resLi).join("")}</ul>
+    <h4>Connects to</h4><div class="chips">${c.rel.map(r=>`<button class="chip" type="button" data-go="${r}">${esc(byId[r].t)}</button>`).join("")}</div>
+    <button class="reset" type="button" id="resetBtn">Clear selection</button>`;
+  panel.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>select(b.dataset.go)));
+  document.getElementById("resetBtn").addEventListener("click",reset);
+  if (window.innerWidth<=980) panel.scrollIntoView({behavior:"smooth",block:"start"});
+}
+function reset(){
+  mapEl.classList.remove("focus");
+  mapEl.querySelectorAll(".box").forEach(b=>b.classList.remove("selected","related"));
+  panel.innerHTML = emptyHTML; renderStarters();
+}
+function renderStarters(){
+  const s=document.getElementById("starters"); if(!s) return;
+  ["crm","mulesoft","resagent","itsm"].forEach(id=>{
+    const b=document.createElement("button"); b.className="chip"; b.type="button"; b.textContent=byId[id].t;
+    b.addEventListener("click",()=>select(id)); s.appendChild(b);
+  });
+}
+renderStarters();
+
+// library
+const groups = LAYERS.map(L=>({name:L.name, keys:[...new Set(C.filter(c=>c.L===L.id).flatMap(c=>c.res))]}));
+groups.push({name:"City of Niagara Falls", keys:["sp","spcs","ayc","budgets","amp","activenet"]});
+groups.push({name:"Learning & news", keys:["platform","psadmin","mtrail","df","dfmedia"]});
+// keep City links out of layer groups to avoid repeats
+const cityKeys = new Set(["sp","spcs","ayc","budgets","amp","activenet"]);
+groups.slice(0,5).forEach(g=>g.keys=g.keys.filter(k=>!cityKeys.has(k)));
+const lib = document.getElementById("lib");
+function renderLib(q=""){
+  q=q.trim().toLowerCase();
+  lib.innerHTML = groups.map(g=>{
+    const items=g.keys.filter(k=>!q || (R[k].t+" "+R[k].d+" "+g.name).toLowerCase().includes(q));
+    if(!items.length) return "";
+    return `<div class="lib-group"><h3>${esc(g.name)}</h3><ul>${items.map(k=>`<li><a href="${R[k].u}" target="_blank" rel="noopener">${esc(R[k].t)}</a><span class="d">${esc(R[k].d)}</span></li>`).join("")}</ul></div>`;
+  }).join("") || `<p class="note">No resources match that filter.</p>`;
+}
+renderLib();
+document.getElementById("q").addEventListener("input",e=>renderLib(e.target.value));
+</script>
+</body>
+</html>
